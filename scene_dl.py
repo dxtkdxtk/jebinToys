@@ -14,7 +14,7 @@ threadlist = []
     
 
 site = 'ftp.scene.org'#main site
-group = '8bitpeoples'#group
+group = 'farb-rausch'#group
 path = 'pub/music/groups/%s'%group#full path: /music/groups/group/
 
 #logger setting
@@ -45,15 +45,25 @@ logger.info('logined')
 ftp.cwd(path)
 ftp.retrlines('NLST', filecallback)
 logger.info('get all files')
-ftp.quit()
 
+
+def downloadfile(ftp, file):
+    logger.info('downloading %s' % (file))
+    if not os.path.exists(group):
+        os.makedirs(group)
+    tmpfile = open('%s/%s'%(group,file), 'wb')
+    ftp.retrbinary('RETR ' + file ,tmpfile.write)
+    tmpfile.close()
+    logger.info('download finish %s' % (file))
 class myThread (threading.Thread):
         def __init__(self, threadID,filename):
             self.threadID = threadID
             self.filename = filename
             threading.Thread.__init__(self)
+            self.ftp = None
         def run(self):
-            while True:
+            ok = True
+            while ok:
                 try:
                     self.ftp = ftplib.FTP(site)
                     self.ftp.login()
@@ -61,15 +71,16 @@ class myThread (threading.Thread):
                     logger.info('thread[%d]: downloading %s' % (self.threadID, self.filename))
                     if not os.path.exists(group):
                         os.makedirs(group)
-                    self.ftp.retrbinary('RETR ' + self.filename ,open('%s/%s'%(group,self.filename), 'wb').write)
+                    tmpfile = open('%s/%s'%(group,self.filename), 'wb')
+                    self.ftp.retrbinary('RETR ' + self.filename ,tmpfile.write)        
+                    tmpfile.close()
+                    logger.info('thread[%d]: download finish %s' % (self.threadID, self.filename))
                     self.ftp.quit()
-                    logger.info('download finish %s' % (self.threadID, self.filename))
+                    ok = False
                     
-                    break
                 except:
-                    self.ftp.close()
                     sleep(5)
-                
+
 n = 1
 for i in filelist:
     t = myThread(n, i)
@@ -78,5 +89,9 @@ for i in filelist:
     t.start()
 for i in threadlist:
     i.join()
-logger.info('download all finish') 
+logger.info('download all finish')
+'''
+for i in filelist:
+    downloadfile(ftp, i)
+'''
 ftp.close()
